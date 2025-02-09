@@ -2,8 +2,8 @@ package com.xg7plugins.extension.scores.bossbar;
 
 import com.xg7plugins.XG7Plugins;
 import com.xg7plugins.boot.Plugin;
-import com.xg7plugins.temp.xg7scores.Score;
-import com.xg7plugins.temp.xg7scores.ScoreCondition;
+import com.xg7plugins.extension.Score;
+import com.xg7plugins.extension.XG7ScoresExtension;
 import com.xg7plugins.utils.text.Text;
 import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
@@ -13,17 +13,18 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.function.Function;
 
 public class PublicBossBar extends Score {
     
     private final BossBar bossBar;
     
-    public PublicBossBar(long delay, List<String> title, String id, ScoreCondition condition, BarColor color, BarStyle style, double progress, Plugin plugin) {
+    public PublicBossBar(long delay, List<String> title, String id, Function<Player, Boolean> condition, BarColor color, BarStyle style, double progress, Plugin plugin) {
         super(delay, title, id, condition, plugin);
 
         bossBar = Bukkit.createBossBar(title.get(0),color,style);
         bossBar.setProgress(progress / 100);
-        XG7Plugins.getInstance().getScoreManager().registerScore(this);
+        XG7ScoresExtension.getInstance().registerScore(this);
     }
 
     @SneakyThrows

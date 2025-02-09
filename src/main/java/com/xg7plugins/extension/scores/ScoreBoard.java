@@ -2,8 +2,8 @@ package com.xg7plugins.extension.scores;
 
 import com.xg7plugins.boot.Plugin;
 import com.xg7plugins.XG7Plugins;
-import com.xg7plugins.temp.xg7scores.Score;
-import com.xg7plugins.temp.xg7scores.ScoreCondition;
+import com.xg7plugins.extension.Score;
+import com.xg7plugins.extension.XG7ScoresExtension;
 import com.xg7plugins.utils.Pair;
 import com.xg7plugins.utils.text.Text;
 import org.bukkit.Bukkit;
@@ -16,6 +16,8 @@ import org.bukkit.scoreboard.Team;
 
 
 import java.util.*;
+import java.util.function.Function;
+
 public class ScoreBoard extends Score {
 
     private final List<String> lines;
@@ -23,17 +25,17 @@ public class ScoreBoard extends Score {
     private final HashMap<UUID, PlayerBoard> playerBoards = new HashMap<>();
 
 
-    public ScoreBoard(String title, List<String> lines, String id, ScoreCondition condition, long delay, Plugin plugin) {
+    public ScoreBoard(String title, List<String> lines, String id, Function<Player, Boolean> condition, long delay, Plugin plugin) {
         super(delay, Collections.singletonList(title),id, condition, plugin);
         this.lines = lines;
-        XG7Plugins.getInstance().getScoreManager().registerScore(this);
+        XG7ScoresExtension.getInstance().registerScore(this);
 
     }
 
-    public ScoreBoard(List<String> title, List<String> lines, String id, ScoreCondition condition, long taskDelay, Plugin plugin) {
+    public ScoreBoard(List<String> title, List<String> lines, String id, Function<Player, Boolean> condition, long taskDelay, Plugin plugin) {
         super(taskDelay, title,id,condition,plugin);
         this.lines = lines;
-        XG7Plugins.getInstance().getScoreManager().registerScore(this);
+        XG7ScoresExtension.getInstance().registerScore(this);
     }
 
     public void update() {
@@ -102,7 +104,7 @@ public class ScoreBoard extends Score {
             if (scoreboard == null) return;
             List<String> lastEntries = new ArrayList<>();
             for (int i = 0; i < lines.size(); i++) {
-                String translatedText = Text.detectLangOrText(plugin,player,lines.get(i)).join().getText();
+                String translatedText = Text.detectLangs(player, plugin,lines.get(i)).join().getText();
 
                 String prefix = translatedText.substring(0, Math.min(translatedText.length(), 16));
                 String entry = translatedText.length() > 16 ? translatedText.substring(16, Math.min(translatedText.length(), 56)) : "";
@@ -135,7 +137,7 @@ public class ScoreBoard extends Score {
                 }
             }
 
-            objective.setDisplayName(Text.detectLangOrText(plugin,player,title.get(indexUpdating)).join().getText());
+            objective.setDisplayName(Text.detectLangs(player, plugin,title.get(indexUpdating)).join().getText());
         }
 
 

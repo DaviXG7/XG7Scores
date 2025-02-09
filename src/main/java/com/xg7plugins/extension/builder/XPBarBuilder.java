@@ -1,7 +1,7 @@
-package com.xg7plugins.extension.xg7scores.builder;
+package com.xg7plugins.extension.builder;
 
 import com.xg7plugins.boot.Plugin;
-import com.xg7plugins.temp.xg7scores.scores.XPBar;
+import com.xg7plugins.extension.scores.XPBar;
 
 import java.util.ArrayList;
 import java.util.List;

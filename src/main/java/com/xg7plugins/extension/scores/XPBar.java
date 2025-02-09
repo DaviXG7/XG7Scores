@@ -1,9 +1,9 @@
-package com.xg7plugins.extension.xg7scores.scores;
+package com.xg7plugins.extension.scores;
 
-import com.xg7plugins.XG7Plugins;
 import com.xg7plugins.boot.Plugin;
 import com.xg7plugins.extension.XG7ScoresExtension;
-import com.xg7plugins.extension.xg7scores.Score;
+import com.xg7plugins.extension.Score;
+import com.xg7plugins.utils.text.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -27,10 +27,9 @@ public class XPBar extends Score {
                 String level = updateText.get(indexUpdating).split(", ")[0];
                 String progress = updateText.get(indexUpdating).split(", ")[1];
 
-                if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-                    level = PlaceholderAPI.setPlaceholders(player, level);
-                    progress = PlaceholderAPI.setPlaceholders(player, progress);
-                }
+                level = Text.format(level).textFor(player).getText();
+                progress = Text.format(progress).textFor(player).getText();
+
 
                 player.setLevel(Integer.parseInt(level));
                 player.setExp(Float.parseFloat(progress));

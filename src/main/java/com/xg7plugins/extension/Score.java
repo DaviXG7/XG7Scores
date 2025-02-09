@@ -1,4 +1,4 @@
-package com.xg7plugins.extension.xg7scores;
+package com.xg7plugins.extension;
 
 import com.xg7plugins.boot.Plugin;
 import lombok.Getter;

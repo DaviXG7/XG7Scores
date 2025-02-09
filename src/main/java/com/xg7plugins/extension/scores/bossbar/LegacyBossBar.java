@@ -1,22 +1,29 @@
-package com.xg7plugins.extension.xg7scores.scores.bossbar;
+package com.xg7plugins.extension.scores.bossbar;
 
-import com.xg7plugins.XG7Plugins;
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+import com.github.retrooper.packetevents.protocol.entity.data.EntityDataType;
+import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.xg7plugins.boot.Plugin;
-import com.xg7plugins.temp.xg7scores.Score;
-import com.xg7plugins.temp.xg7scores.ScoreCondition;
-import com.xg7plugins.utils.reflection.*;
-import com.xg7plugins.utils.reflection.nms.*;
+import com.xg7plugins.extension.Score;
+import com.xg7plugins.extension.XG7ScoresExtension;
+import com.xg7plugins.utils.location.Location;
 import com.xg7plugins.utils.text.Text;
+import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
 
 @Getter
 public class LegacyBossBar extends Score {
@@ -25,36 +32,12 @@ public class LegacyBossBar extends Score {
 
     private final HashMap<UUID, Integer> entities = new HashMap<>();
 
-    private static PacketClass packetPlayOutEntityTeleportClass;
-    private static PacketClass packetPlayOutEntityMetadataClass;
-    private static PacketClass packetPlayOutSpawnEntityLivingClass;
-    private static PacketClass packetPlayOutEntityDestroyClass;
-
-    private static ReflectionClass entityWitherClass;
-    private static ReflectionClass worldClass;
-    private static ReflectionClass entityLivingClass;
-
-    static {
-        try {
-            packetPlayOutEntityTeleportClass = new PacketClass("PacketPlayOutEntityTeleport");
-            packetPlayOutEntityMetadataClass = new PacketClass("PacketPlayOutEntityMetadata");
-            packetPlayOutSpawnEntityLivingClass = new PacketClass("PacketPlayOutSpawnEntityLiving");
-            packetPlayOutEntityDestroyClass = new PacketClass("PacketPlayOutEntityDestroy");
-
-            entityWitherClass = NMSUtil.getNMSClass("EntityWither");
-            worldClass = NMSUtil.getNMSClass("World");
-            entityLivingClass = NMSUtil.getNMSClass("EntityLiving");
-        } catch (Exception ignored) {
-
-        }
-    }
-
 
     @SneakyThrows
-    public LegacyBossBar(long delay, List<String> text, String id, ScoreCondition condition, float healthPercent, Plugin plugin) {
+    public LegacyBossBar(long delay, List<String> text, String id, Function<Player, Boolean> condition, float healthPercent, Plugin plugin) {
         super(delay, text, id, condition, plugin);
         this.healthPercent = healthPercent;
-        XG7Plugins.getInstance().getScoreManager().registerScore(this);
+        XG7ScoresExtension.getInstance().registerScore(this);
     }
 
     @Override
@@ -65,39 +48,42 @@ public class LegacyBossBar extends Score {
 
             super.addPlayer(player);
 
-            ReflectionObject wither = entityWitherClass.getConstructor(worldClass.getAClass())
-                    .newInstance(worldClass.cast(ReflectionMethod.of(player.getWorld(), "getHandle").invoke()));
+            WrapperPlayServerSpawnEntity spawnEntity = new WrapperPlayServerSpawnEntity(
+                    SpigotReflectionUtil.generateEntityId(),
+                    UUID.randomUUID(),
+                    EntityTypes.WITHER,
+                    Location.of("world",0,1,0).getProtocolLocation(),
+                    0,
+                    0,
+                    null
+            );
 
-            Packet spawnPacket = new Packet(packetPlayOutSpawnEntityLivingClass, new Class<?>[]{entityLivingClass.getAClass()}, wither.getObject());
+            List<EntityData> entityData = new ArrayList<>();
 
-            EntityDataWatcher dataWatcher = new EntityDataWatcher();
+            entityData.add(new EntityData(0, EntityDataTypes.BYTE, (byte) (1 << 5)));
 
-            dataWatcher.watch(6, (healthPercent / 100) * 300);
+            entityData.add(new EntityData(2, EntityDataTypes.ADV_COMPONENT, Component.text(updateText.get(0))));
 
-            dataWatcher.watch(2, updateText.get(0));
+            entityData.add(new EntityData(3, EntityDataTypes.BOOLEAN, true));
+            entityData.add(new EntityData(11, EntityDataTypes.BOOLEAN, true));
 
-            dataWatcher.watch(11, (byte) 1);
-            dataWatcher.watch(3, (byte) 1);
+            entityData.add(new EntityData(6, EntityDataTypes.FLOAT, (healthPercent / 100) * 300));
 
-            dataWatcher.watch(17, 0);
-            dataWatcher.watch(18, 0);
-            dataWatcher.watch(19, 0);
+            entityData.add(new EntityData(17, EntityDataTypes.BYTE, 0));
+            entityData.add(new EntityData(18, EntityDataTypes.BYTE, 0));
+            entityData.add(new EntityData(19, EntityDataTypes.BYTE, 0));
 
-            dataWatcher.watch(20, 1000);
-            dataWatcher.watch(0, (byte) (1 << 5));
+            entityData.add(new EntityData(20, EntityDataTypes.INT, 1000));
 
-            Packet packetPlayOutEntityMetadata = new Packet(packetPlayOutEntityMetadataClass);
+            WrapperPlayServerEntityMetadata entityMetadata = new WrapperPlayServerEntityMetadata(
+                    spawnEntity.getEntityId(),
+                    entityData
+            );
 
-            packetPlayOutEntityMetadata.setField("a", wither.getMethod("getId").invoke());
-            packetPlayOutEntityMetadata.setField("b", dataWatcher.getWatcher().getMethod("c").invoke());
+            entities.put(player.getUniqueId(), spawnEntity.getEntityId());
 
-            entities.put(player.getUniqueId(), wither.getMethod("getId").invoke());
-
-            PlayerNMS playerNMS = PlayerNMS.cast(player);
-
-            playerNMS.sendPacket(spawnPacket);
-
-            playerNMS.sendPacket(packetPlayOutEntityMetadata);
+            PacketEvents.getAPI().getPlayerManager().sendPacket(player, spawnEntity);
+            PacketEvents.getAPI().getPlayerManager().sendPacket(player, entityMetadata);
 
         }, 2L);
     }
@@ -109,9 +95,9 @@ public class LegacyBossBar extends Score {
         if (!super.getPlayers().contains(player.getUniqueId())) return;
         if (!entities.containsKey(player.getUniqueId())) return;
 
-        Packet packet = new Packet(packetPlayOutEntityDestroyClass, new Class<?>[]{int[].class}, new int[] {entities.get(player.getUniqueId())});
+        WrapperPlayServerDestroyEntities destroyEntities = new WrapperPlayServerDestroyEntities(entities.get(player.getUniqueId()));
 
-        PlayerNMS.cast(player).sendPacket(packet);
+        PacketEvents.getAPI().getPlayerManager().sendPacket(player, destroyEntities);
 
         super.removePlayer(player);
     }
@@ -126,36 +112,29 @@ public class LegacyBossBar extends Score {
             if (player == null) continue;
             if (player.isDead()) continue;
 
-            Location playerLocation = player.getLocation();
+            Location playerLocation = Location.fromBukkit(player.getLocation());
             Vector direction = playerLocation.getDirection();
 
             Location targetLocation = playerLocation.add(direction.multiply(40));
 
-            Packet packet = new Packet(packetPlayOutEntityTeleportClass);
+            WrapperPlayServerEntityTeleport packet = new WrapperPlayServerEntityTeleport(
+                    entities.get(player.getUniqueId()),
+                    targetLocation.getProtocolLocation(),
+                    true
+            );
 
-            packet.setField("a", entities.get(player.getUniqueId()));
-            packet.setField("b", (int) (targetLocation.getX() * 32D));
-            packet.setField("c", (int) (targetLocation.getY() * 32D));
-            packet.setField("d", (int) (targetLocation.getZ() * 32D));
-            packet.setField("e", (byte) (int) (targetLocation.getYaw() * 256F / 360F));
-            packet.setField("f", (byte) (int) (targetLocation.getPitch() * 256F / 360F));
 
-            PlayerNMS playerNMS = PlayerNMS.cast(player);
+            PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
 
-            playerNMS.sendPacket(packet);
 
-            EntityDataWatcher dataWatcher = new EntityDataWatcher();
+            String name = Text.detectLangs(player, plugin,updateText.get(indexUpdating)).join().getText();
 
-            String name = Text.detectLangOrText(plugin,player,updateText.get(indexUpdating)).join().getText();
+            WrapperPlayServerEntityMetadata packetPlayOutEntityMetadata = new WrapperPlayServerEntityMetadata(
+                    entities.get(player.getUniqueId()),
+                    Collections.singletonList(new EntityData(2, EntityDataTypes.ADV_COMPONENT, Component.text(name)))
+            );
 
-            dataWatcher.watch(2, name);
-
-            Packet packetPlayOutEntityMetadata = new Packet(packetPlayOutEntityMetadataClass);
-
-            packetPlayOutEntityMetadata.setField("a", entities.get(player.getUniqueId()));
-            packetPlayOutEntityMetadata.setField("b", dataWatcher.getWatcher().getMethod("c").invoke());
-            playerNMS.sendPacket(packetPlayOutEntityMetadata);
-
+            PacketEvents.getAPI().getPlayerManager().sendPacket(player, packetPlayOutEntityMetadata);
 
         }
 

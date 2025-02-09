@@ -1,9 +1,9 @@
-package com.xg7plugins.extension.xg7scores.scores.bossbar;
+package com.xg7plugins.extension.scores.bossbar;
 
 import com.xg7plugins.XG7Plugins;
 import com.xg7plugins.boot.Plugin;
-import com.xg7plugins.temp.xg7scores.Score;
-import com.xg7plugins.temp.xg7scores.ScoreCondition;
+import com.xg7plugins.extension.Score;
+import com.xg7plugins.extension.XG7ScoresExtension;
 import com.xg7plugins.utils.text.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 public class BossBar extends Score {
 
@@ -23,12 +24,12 @@ public class BossBar extends Score {
     private final BarStyle style;
     private final double progress;
 
-    public BossBar(long delay, String id, ScoreCondition condition, List<String> title, BarColor color, BarStyle style, double progress, Plugin plugin) {
+    public BossBar(long delay, String id, Function<Player, Boolean> condition, List<String> title, BarColor color, BarStyle style, double progress, Plugin plugin) {
         super(delay, title, id, condition, plugin);
         this.color = color;
         this.style = style;
         this.progress = progress;
-        XG7Plugins.getInstance().getScoreManager().registerScore(this);
+        XG7ScoresExtension.getInstance().registerScore(this);
     }
     @Override
     public synchronized void addPlayer(Player player) {
@@ -56,7 +57,7 @@ public class BossBar extends Score {
             Player player = Bukkit.getPlayer(id);
             if (player == null) continue;
 
-            String name = Text.detectLangOrText(plugin,player,updateText.get(indexUpdating)).join().getText();
+            String name = Text.detectLangs(player, plugin,updateText.get(indexUpdating)).join().getText();
 
             if (!bossBars.get(id).getTitle().equals(name)) {
                 bossBars.get(player.getUniqueId()).setTitle(name);
